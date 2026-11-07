@@ -27,3 +27,8 @@ android/icono/
 
 # Function-matching caches (built from the generated code of the games)
 tools/emparejar_d3d/*.pkl
+# launcher-only build: game-derived native libs and shader assets from the upstream release APK
+android/app/prebuilt/
+android/local.properties
+android/.gradle/
+android/app/build/

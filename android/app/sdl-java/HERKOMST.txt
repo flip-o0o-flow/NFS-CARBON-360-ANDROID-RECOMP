@@ -1,0 +1,1 @@
+SDL3 Android Java from libsdl-org/SDL commit 47d14491 (2026-04-25), matching the libSDL3.so of the upstream v0.3.3 release APK.
