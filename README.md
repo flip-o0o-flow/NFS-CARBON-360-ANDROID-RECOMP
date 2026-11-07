@@ -200,3 +200,15 @@ Based on the ReXGlue SDK, with code derived from Xenia, and on NFSMW Android Evo
 controls, the SDL lifecycle and the report helpers, under GPL-3.0, kept in `android/LICENSE`; see also
 `android/NOTICE.md`). The modified copy of `phase_gapfill.cpp` keeps Tom Clay's attribution and the three-clause BSD
 license in `LICENSE`. Need for Speed Carbon belongs to its owners. An independent community project.
+
+## About this fork
+
+This is a fork of [codepdbh/NFS-CARBON-360-ANDROID-RECOMP](https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP).
+Differences from upstream:
+
+- The launcher can run in English or Spanish (option **App language**: system, Español, English); the fps counter
+  sits in the top-right corner.
+- `android/` is a launcher-only build: it compiles the Java launcher and packs the native libraries and shader assets
+  of the upstream release APK. Unzip `lib/` and `assets/` of that APK into `android/app/prebuilt/` before building.
+
+The game code, the renderer and all native parts come unchanged from upstream.
