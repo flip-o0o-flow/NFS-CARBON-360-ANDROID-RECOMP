@@ -212,3 +212,13 @@ Differences from upstream:
   of the upstream release APK. Unzip `lib/` and `assets/` of that APK into `android/app/prebuilt/` before building.
 
 The game code, the renderer and all native parts come unchanged from upstream.
+
+### Controller buttons (fork, 2026-11-09)
+
+Gear ⚙ → Settings → **Controller buttons…**: assign a physical button or trigger axis of the connected gamepad to each
+Xbox 360 button (A/B/X/Y, LB/RB, LT/RT, Back/Start, stick clicks, D-pad). Tap **Set**, press the button within five
+seconds; a trigger axis above 0.5 counts as pressed (hysteresis 0.5/0.3) and is zeroed in the event passed on. Stored
+per controller (`InputDevice.getDescriptor()`) in the `nfscarbon_controls` prefs; **Reset all** restores the default.
+Implemented in the Java layer before SDL (`ButtonMap.java`, `GameActivity.dispatchKeyEvent`/`dispatchGenericMotionEvent`),
+so the prebuilt native libraries are untouched. Reason: the Backbone One (PlayStation Edition) reports its triggers as
+bumpers and its bumpers not at all.

@@ -34,6 +34,7 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
+import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -61,6 +62,14 @@ public final class GameActivity extends SDLActivity
     private String cacheRoot;
     private TouchControlsView controls;
     private LinearLayout toolbar;
+    private ButtonMap buttonMap;
+    private InputDevice mappingDevice;
+    private int listeningTarget = -1;
+    private Runnable refreshMapping;
+    private final Runnable stopListening = () -> {
+        listeningTarget = -1;
+        if (refreshMapping != null) refreshMapping.run();
+    };
     private InputManager inputManager;
     private SensorManager sensorManager;
     private Sensor gravity;
@@ -99,6 +108,7 @@ public final class GameActivity extends SDLActivity
         installSettings();
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         super.onCreate(state);
+        buttonMap = new ButtonMap(this, event -> super.dispatchKeyEvent(event));
         useWholeScreen();
 
         ViewGroup root = findViewById(android.R.id.content);
@@ -200,6 +210,7 @@ public final class GameActivity extends SDLActivity
     @Override
     protected void onPause() {
         frameHandler.removeCallbacks(updateFrames);
+        if (buttonMap != null) buttonMap.release();
         if (inputManager != null) {
             inputManager.unregisterInputDeviceListener(this);
         }
@@ -264,7 +275,10 @@ public final class GameActivity extends SDLActivity
     private void refreshGamepads() {
         boolean any = false;
         for (int id : inputManager.getInputDeviceIds()) {
-            any |= isGamepad(inputManager.getInputDevice(id));
+            InputDevice device = inputManager.getInputDevice(id);
+            any |= isGamepad(device);
+            if (isGamepad(device) && (buttonMap.lastDevice == null ||
+                    InputDevice.getDevice(buttonMap.lastDevice.getId()) == null)) buttonMap.lastDevice = device;
         }
         if (any) {
             controls.onGamepadActive();
@@ -280,6 +294,7 @@ public final class GameActivity extends SDLActivity
 
     @Override
     public void onInputDeviceRemoved(int deviceId) {
+        buttonMap.release();
         refreshGamepads();
     }
 
@@ -292,6 +307,10 @@ public final class GameActivity extends SDLActivity
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (isGamepad(event.getDevice())) {
             controls.onGamepadActive();
+            if (buttonMap != null) {
+                buttonMap.lastDevice = event.getDevice();
+                event = buttonMap.key(event);
+            }
         }
         return super.dispatchKeyEvent(event);
     }
@@ -300,6 +319,12 @@ public final class GameActivity extends SDLActivity
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
         if (isGamepad(event.getDevice())) {
             controls.onGamepadActive();
+            if (buttonMap != null) {
+                buttonMap.lastDevice = event.getDevice();
+                MotionEvent mapped = buttonMap.motion(event);
+                try { return super.dispatchGenericMotionEvent(mapped); }
+                finally { if (mapped != event) mapped.recycle(); }
+            }
         }
         return super.dispatchGenericMotionEvent(event);
     }
@@ -411,6 +436,7 @@ public final class GameActivity extends SDLActivity
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(20), dp(8), dp(20), dp(8));
 
+        panel.addView(toolButton(T.t("Botones del mando…"), v -> showButtonMap()));
         panel.addView(toggle(T.t("Imagen estirada a toda la pantalla"), controls.stretch, on -> {
             controls.stretch = on;
             applyStretch(on);
@@ -436,6 +462,92 @@ public final class GameActivity extends SDLActivity
                 .setPositiveButton(T.t("Cerrar"), (d, w) -> controls.save())
                 .setOnDismissListener(d -> controls.save())
                 .show();
+    }
+
+    private void showButtonMap() {
+        buttonMap.release();
+        mappingDevice = buttonMap.lastDevice;
+        if (mappingDevice != null) mappingDevice = InputDevice.getDevice(mappingDevice.getId());
+        listeningTarget = -1;
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(20), dp(8), dp(20), dp(8));
+        TextView hint = new TextView(this);
+        panel.addView(hint);
+        TextView[] labels = new TextView[ButtonMap.KEYS.length];
+        refreshMapping = () -> {
+            hint.setText(listeningTarget >= 0 ? T.t("Pulsa el botón ahora…") :
+                    mappingDevice == null ? T.t("Conecta y usa un mando primero.") : mappingDevice.getName());
+            for (int i = 0; i < labels.length; i++) {
+                String source = mappingDevice == null ? null : buttonMap.mapping(mappingDevice)[i];
+                String value = source == null ? T.t("predeterminado") : source.startsWith("axis:") ?
+                        T.t("eje ") + source.substring(5) : T.t("tecla ") + source;
+                labels[i].setText(ButtonMap.NAMES[i] + ": " + value);
+            }
+        };
+        for (int i = 0; i < labels.length; i++) {
+            final int target = i;
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            labels[i] = new TextView(this);
+            row.addView(labels[i], new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            row.addView(toolButton(T.t("Asignar"), v -> {
+                listeningTarget = target;
+                frameHandler.removeCallbacks(stopListening);
+                frameHandler.postDelayed(stopListening, 5000);
+                refreshMapping.run();
+            }));
+            panel.addView(row);
+        }
+        refreshMapping.run();
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(panel);
+        AlertDialog dialog = new AlertDialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert) {
+            @Override public boolean dispatchKeyEvent(KeyEvent event) {
+                if (!isGamepad(event.getDevice())) return super.dispatchKeyEvent(event);
+                if (listeningTarget >= 0 && event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0)
+                    captureButton(event.getDevice(), Integer.toString(event.getKeyCode()));
+                return true;
+            }
+
+            @Override public boolean dispatchGenericMotionEvent(MotionEvent event) {
+                if (!isGamepad(event.getDevice())) return super.dispatchGenericMotionEvent(event);
+                if (listeningTarget >= 0 && event.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                    for (int axis : ButtonMap.AXES) {
+                        if (event.getAxisValue(axis) > .5f) {
+                            captureButton(event.getDevice(), "axis:" + axis);
+                            break;
+                        }
+                    }
+                }
+                return true;
+            }
+        };
+        dialog.setTitle(T.t("Botones del mando…"));
+        dialog.setView(scroll);
+        dialog.setButton(AlertDialog.BUTTON_NEUTRAL, T.t("Restablecer todo"), (d, w) -> {});
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, T.t("Listo"), (d, w) -> {});
+        dialog.setOnDismissListener(d -> {
+            frameHandler.removeCallbacks(stopListening);
+            listeningTarget = -1;
+            refreshMapping = null;
+        });
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            frameHandler.removeCallbacks(stopListening);
+            listeningTarget = -1;
+            if (mappingDevice != null) buttonMap.reset(mappingDevice);
+            refreshMapping.run();
+        });
+    }
+
+    private void captureButton(InputDevice device, String source) {
+        if (mappingDevice != null && mappingDevice.getId() != device.getId()) return;
+        mappingDevice = device;
+        buttonMap.lastDevice = device;
+        buttonMap.assign(device, listeningTarget, source);
+        frameHandler.removeCallbacks(stopListening);
+        stopListening.run();
     }
 
     private interface OnToggle {

@@ -93,6 +93,14 @@ final class T {
         p("Ajustes de los controles", "Control settings");
         p("Cerrar", "Close");
         p("No se pudo instalar ", "Could not install ");
+        p("Botones del mando…", "Controller buttons…");
+        p("Asignar", "Set");
+        p("Restablecer todo", "Reset all");
+        p("Pulsa el botón ahora…", "Press the button now…");
+        p("Conecta y usa un mando primero.", "Connect and use a controller first.");
+        p("predeterminado", "default");
+        p("tecla ", "key ");
+        p("eje ", "axis ");
         // GameOptions
         p("Idioma del juego", "Game language");
         p("Inglés", "English");
