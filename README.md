@@ -208,6 +208,12 @@ Differences from upstream:
 
 - The launcher can run in English or Spanish (option **App language**: system, Español, English); the fps counter
   sits in the top-right corner.
+- Launcher restyled after the nx2android/FH2 Recompiled shells: dark slanted panel on the left (title, status dot,
+  actions with line icons), settings as cards in two columns, parallelogram Play button, one turquoise accent.
+  All shapes and icons are drawn in code (`Shell.java`); no images, no bundled font. Dialogs, the in-game toolbar,
+  Controller buttons and the fps counter use the same theme (`res/values/styles.xml`). Accent = the teal of Carbon's
+  own menus, measured on the main menu: #6DC5C9.
+- Two mod switches in the launcher (off by default), see "Mods" below.
 - `android/` is a launcher-only build: it compiles the Java launcher and packs the native libraries and shader assets
   of the upstream release APK. Unzip `lib/` and `assets/` of that APK into `android/app/prebuilt/` before building.
 
@@ -222,3 +228,20 @@ per controller (`InputDevice.getDescriptor()`) in the `nfscarbon_controls` prefs
 Implemented in the Java layer before SDL (`ButtonMap.java`, `GameActivity.dispatchKeyEvent`/`dispatchGenericMotionEvent`),
 so the prebuilt native libraries are untouched. Reason: the Backbone One (PlayStation Edition) reports its triggers as
 bumpers and its bumpers not at all.
+
+### Mods (fork, 2026-11-14)
+
+Launcher options **Unlock all cars and parts** and **Infinite money**. Only when one is on, GameActivity loads
+`libcarbonmods.so` (source `android/app/src/main/mods/carbon_mods.c`, built by the launcher-only build) before
+`libmain.so`. A thread waits until the title image is in guest memory (`rex::Runtime::virtual_membase()`), checks a few
+code words of this exact executable (Collector's Edition Europe, xex 0.0.0.11) and stays off with one log line if they
+differ. Then, every 250 ms:
+
+- *Unlock*: sets the debug byte at guest `0x82C6503C` (the PC version's `UnlockAllThings`), which about 14 lock checks
+  read before returning "unlocked". Nothing is written to the save. Side effect: on a career without a car the game skips
+  the prologue and Customization / Free Roam crash, so start a career with the switch off.
+- *Money*: walks the object list at `[0x82C6431C]` to the career cash (vtable `0x8206FC98`, field +0x58) and tops it up
+  to 9,999,999 when it drops below 1,000,000. This ends up in the save.
+
+Log: `files/nfscarbon/user/carbon_mods.log` and logcat tag `CarbonMods`.
+

@@ -44,6 +44,10 @@ final class GameOptions {
         new String[]{"english", "text"}, new String[]{T.t("Inglés · copias PAL inglesas"), T.t("Igual que los textos · copias dobladas")});
     static final Option UI_LANGUAGE = new Option(T.KEY, T.t("Idioma de la aplicación"), null, "system",
         new String[]{"system", "es", "en"}, new String[]{T.t("Del sistema"), "Español", "English"});
+    static final Option MOD_UNLOCK = new Option("mod_unlock", T.t("Desbloquear todos los coches y piezas"), null, "false",
+        new String[]{"false", "true"}, new String[]{T.t("Desactivado"), T.t("Activado · no cambia la partida")});
+    static final Option MOD_MONEY = new Option("mod_money", T.t("Dinero infinito"), null, "false",
+        new String[]{"false", "true"}, new String[]{T.t("Desactivado"), T.t("Activado · se guarda en la partida")});
     static final Option[] ALL = {
         UI_LANGUAGE,
         RENDERER,
@@ -75,6 +79,9 @@ final class GameOptions {
             new String[]{"true", "false"}, new String[]{"Visible", T.t("Oculto")}),
         new Option("diagnostics", T.t("Registros"), null, "normal",
             new String[]{"normal", "detailed"}, new String[]{T.t("Solo avisos y errores"), T.t("Detallados + tiempos")}),
+        // Mods (libcarbonmods.so, loaded only when one is on; GameActivity.getLibraries).
+        MOD_UNLOCK,
+        MOD_MONEY,
     };
     static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE);
@@ -88,7 +95,7 @@ final class GameOptions {
         throw new IllegalArgumentException(key);
     }
     static void set(Context context, String key, String value) {
-        prefs(context).edit().putString(key, value).apply();
+        prefs(context).edit().putString(key, value).commit();  // Not apply(): T.restart() exits the process right after.
     }
     static List<String> arguments(Context context) {
         List<String> args = new ArrayList<>();

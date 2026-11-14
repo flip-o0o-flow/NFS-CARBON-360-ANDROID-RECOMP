@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shell: one turquoise accent, near-black panels (see Shell.java). -->
+<resources>
+    <style name="Shell" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorAccent">#6DC5C9</item>
+        <item name="android:colorControlActivated">#6DC5C9</item>
+        <item name="android:colorControlHighlight">#406DC5C9</item>
+        <item name="android:alertDialogTheme">@style/Shell.Dialog</item>
+    </style>
+    <style name="Shell.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/shell_dialog</item>
+        <item name="android:colorBackground">#0F1214</item>
+        <item name="android:colorAccent">#6DC5C9</item>
+        <item name="android:colorControlActivated">#6DC5C9</item>
+        <item name="android:colorControlHighlight">#406DC5C9</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#B5BBC1</item>
+        <item name="android:textColorAlertDialogListItem">#FFFFFF</item>
+        <item name="android:windowTitleStyle">@style/Shell.DialogTitle</item>
+        <item name="android:buttonBarButtonStyle">@style/Shell.DialogButton</item>
+    </style>
+    <style name="Shell.DialogTitle">
+        <item name="android:maxLines">2</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textAppearance">@style/Shell.DialogTitleText</item>
+    </style>
+    <style name="Shell.DialogTitleText" parent="@android:style/TextAppearance.Material.DialogWindowTitle">
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textStyle">bold|italic</item>
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+    <style name="Shell.DialogButton" parent="@android:style/Widget.Material.Button.Borderless.Colored">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+</resources>

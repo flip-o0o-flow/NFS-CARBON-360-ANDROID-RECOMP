@@ -90,6 +90,19 @@ public final class GameActivity extends SDLActivity
     private static native void nativeSetStretch(boolean stretch);
     private static native long nativeFrameTimeUs();
 
+    /** Launcher mod switches that are on, e.g. "unlock,money"; empty = libcarbonmods.so is not loaded at all. */
+    private String mods() {
+        String mods = "true".equals(GameOptions.get(this, GameOptions.MOD_UNLOCK.key)) ? "unlock," : "";
+        return "true".equals(GameOptions.get(this, GameOptions.MOD_MONEY.key)) ? mods + "money," : mods;
+    }
+
+    // libcarbonmods.so must be loaded before libmain.so (the last entry, SDL's main) so its sub_<address>
+    // definitions win the symbol lookup.
+    @Override
+    protected String[] getLibraries() {
+        return mods().isEmpty() ? new String[]{"SDL3", "main"} : new String[]{"SDL3", "carbonmods", "main"};
+    }
+
     @Override
     protected void onCreate(Bundle state) {
         File appRoot = new File(getFilesDir(), "nfscarbon");
@@ -102,6 +115,7 @@ public final class GameActivity extends SDLActivity
         // for app_process would be /system/bin (see GetExecutableFolder in filesystem_posix.cpp).
         try {
             Os.setenv("REX_APP_FOLDER", userRoot, true);
+            Os.setenv("CARBON_MODS", mods(), true);  // Read by libcarbonmods.so when it loads.
         } catch (ErrnoException e) {
             Log.w(TAG, "REX_APP_FOLDER", e);
         }
@@ -126,8 +140,11 @@ public final class GameActivity extends SDLActivity
             fpsLabel = new TextView(this);
             fpsLabel.setTextColor(Color.WHITE);
             fpsLabel.setTextSize(12);
-            fpsLabel.setPadding(dp(8), dp(4), dp(8), dp(4));
-            fpsLabel.setBackgroundColor(0x99081017);
+            fpsLabel.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+            fpsLabel.setPadding(dp(10), dp(4), dp(10), dp(4));
+            GradientDrawable fpsBg = new GradientDrawable();  // Launcher shell: dark, rounded, thin accent line.
+            fpsBg.setColor(0xB30B0D0F); fpsBg.setCornerRadius(dp(8)); fpsBg.setStroke(dp(1), 0x666DC5C9);
+            fpsLabel.setBackground(fpsBg);
             FrameLayout.LayoutParams frameParams = new FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
                     Gravity.TOP | Gravity.END);
@@ -375,14 +392,14 @@ public final class GameActivity extends SDLActivity
         bar.setGravity(Gravity.CENTER_HORIZONTAL);
         bar.setPadding(dp(10), dp(6), dp(10), dp(8));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xE6121A22);
-        bg.setCornerRadius(dp(14));
-        bg.setStroke(dp(1), 0x55FFFFFF);
+        bg.setColor(Shell.PANEL);
+        bg.setCornerRadius(dp(10));
+        bg.setStroke(dp(1), Shell.ACCENT);
         bar.setBackground(bg);
 
         TextView hint = new TextView(this);
         hint.setText(T.t("Toca un control para elegirlo · arrástralo para moverlo · pellizca para cambiar su tamaño"));
-        hint.setTextColor(0xCCFFFFFF);
+        hint.setTextColor(0xFFB5BBC1);
         hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         hint.setGravity(Gravity.CENTER);
         bar.addView(hint);
@@ -395,7 +412,15 @@ public final class GameActivity extends SDLActivity
         row.addView(toolButton(T.t("Ajustes"), v -> showSettings()));
         row.addView(toolButton(T.t("Restablecer"), v -> confirmReset()));
         Button done = toolButton(T.t("Listo"), v -> controls.setEditing(false));
-        ((GradientDrawable) done.getBackground()).setColor(0xFFE07B00);
+        GradientDrawable doneBg = new GradientDrawable();  // The one accent-filled button; dark text reads on turquoise.
+        doneBg.setColor(Shell.ACCENT); doneBg.setCornerRadius(dp(10));
+        android.graphics.drawable.StateListDrawable doneStates = new android.graphics.drawable.StateListDrawable();
+        GradientDrawable doneFocus = (GradientDrawable) doneBg.getConstantState().newDrawable().mutate();
+        doneFocus.setStroke(dp(2), Color.WHITE);
+        doneStates.addState(new int[]{android.R.attr.state_focused}, doneFocus);
+        doneStates.addState(new int[]{}, doneBg);
+        done.setBackground(doneStates);
+        done.setTextColor(0xFF04191C);
         row.addView(done);
         bar.addView(row);
         return bar;
@@ -410,10 +435,9 @@ public final class GameActivity extends SDLActivity
         b.setMinHeight(0);
         b.setMinimumHeight(0);
         b.setPadding(dp(12), dp(6), dp(12), dp(6));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF2A3440);
-        bg.setCornerRadius(dp(10));
-        b.setBackground(bg);
+        b.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        b.setStateListAnimator(null);
+        b.setBackground(new Shell.Focus(getResources().getDisplayMetrics().density, 0xFF131719, 10, true));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(dp(4), dp(6), dp(4), 0);
@@ -423,7 +447,7 @@ public final class GameActivity extends SDLActivity
     }
 
     private void confirmReset() {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this)
                 .setTitle(T.t("Restablecer controles"))
                 .setMessage(T.t("¿Volver a la posición y el tamaño originales de todos los controles?"))
                 .setPositiveButton(T.t("Restablecer"), (d, w) -> controls.resetLayout())
@@ -456,7 +480,7 @@ public final class GameActivity extends SDLActivity
                     controls.invalidate();
                 }));
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this)
                 .setTitle(T.t("Ajustes de los controles"))
                 .setView(panel)
                 .setPositiveButton(T.t("Cerrar"), (d, w) -> controls.save())
@@ -502,7 +526,7 @@ public final class GameActivity extends SDLActivity
         refreshMapping.run();
         ScrollView scroll = new ScrollView(this);
         scroll.addView(panel);
-        AlertDialog dialog = new AlertDialog(this, android.R.style.Theme_DeviceDefault_Dialog_Alert) {
+        AlertDialog dialog = new AlertDialog(this) {
             @Override public boolean dispatchKeyEvent(KeyEvent event) {
                 if (!isGamepad(event.getDevice())) return super.dispatchKeyEvent(event);
                 if (listeningTarget >= 0 && event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0)

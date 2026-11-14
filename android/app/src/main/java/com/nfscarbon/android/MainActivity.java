@@ -49,9 +49,9 @@ public final class MainActivity extends Activity {
     private TextView status;
     private Button play, importButton;
     private boolean busy;
-    private LinearLayout checks, optionsList;
+    private LinearLayout checks;
+    private android.widget.GridLayout optionsList;
     private Button accessButton;
-    private static final int ACCENT = 0xFFFF4A43;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -65,87 +65,98 @@ public final class MainActivity extends Activity {
     private View buildScreen() {
         LinearLayout columns = new LinearLayout(this);
         columns.setOrientation(LinearLayout.HORIZONTAL);
-        columns.setPadding(dp(24), dp(16), dp(24), dp(16));
         columns.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0xFF0A1019, 0xFF261316, 0xFF0A1019}));
+                new int[]{0xFF0A0D10, 0xFF050607, 0xFF061518}));
+        float density = getResources().getDisplayMetrics().density;
 
+        // Left: near-black panel with slanted edge; header, actions as a list with line icons, file checks at the bottom.
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        columns.addView(left, new LinearLayout.LayoutParams(0, -1, 1.05f));
+        left.setPadding(0, dp(22), dp(78), dp(14));
+        Shell.Panel panel = new Shell.Panel(density, 70);
+        left.setBackground(panel);
+        columns.addView(left, new LinearLayout.LayoutParams(0, -1, .4f));
 
         LinearLayout heading = new LinearLayout(this);
         heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setPadding(dp(22), dp(14), 0, dp(14));
+        heading.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> panel.band(t, b));
         ImageView icon = new ImageView(this);
-        icon.setImageResource(R.mipmap.ic_launcher);
-        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        heading.addView(icon, new LinearLayout.LayoutParams(dp(78), dp(78)));
+        icon.setImageDrawable(new Shell.Icon(density, Shell.Glyph.GAUGE, 28, Shell.ACCENT));
+        icon.setScaleType(ImageView.ScaleType.CENTER);
+        GradientDrawable iconBox = new GradientDrawable();
+        iconBox.setColor(0xFF15191B); iconBox.setCornerRadius(dp(10)); iconBox.setStroke(dp(1), 0x1FFFFFFF);
+        icon.setBackground(iconBox);
+        heading.addView(icon, new LinearLayout.LayoutParams(dp(50), dp(50)));
         LinearLayout name = new LinearLayout(this);
         name.setOrientation(LinearLayout.VERTICAL);
         name.setPadding(dp(14), 0, 0, 0);
-        name.addView(label("NEED FOR SPEED", 12, 0xFFB8C1CE, true));
-        name.addView(label("CARBON", 32, Color.WHITE, true));
-        name.addView(label("ANDROID EVOLVED · XBOX 360", 11, ACCENT, true));
+        android.text.SpannableString title = new android.text.SpannableString("NEED FOR SPEED CARBON");
+        title.setSpan(new android.text.style.ForegroundColorSpan(Shell.ACCENT), 15, 21, 0);
+        TextView titleView = label("", 18, Color.WHITE, false);
+        titleView.setText(title);
+        titleView.setTypeface(Typeface.create("sans-serif", Typeface.BOLD_ITALIC));
+        titleView.setSingleLine();
+        name.addView(titleView);
+        status = label(T.t("Comprobando archivos…"), 13, 0xFFB5BBC1, false);
+        status.setCompoundDrawablePadding(dp(7));
+        status.setPadding(0, dp(3), 0, 0);
+        name.addView(status);
         heading.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
         left.addView(heading);
 
-        LinearLayout files = card();
-        files.setPadding(dp(16), dp(10), dp(16), dp(10));
-        ScrollView filesScroll = new ScrollView(this);
-        filesScroll.setFillViewport(true);
-        filesScroll.addView(files);
-        LinearLayout.LayoutParams fileParams = new LinearLayout.LayoutParams(-1, 0, 1);
-        fileParams.topMargin = dp(12);
-        left.addView(filesScroll, fileParams);
-        files.addView(label(T.t("ARCHIVOS DEL JUEGO"), 12, ACCENT, true));
-        status = label(T.t("Comprobando archivos…"), 13, 0xFFCAD2DD, false);
-        status.setPadding(0, dp(6), 0, dp(8));
-        files.addView(status);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, dp(50));
+        accessButton = action(T.t("Permitir acceso"), Shell.Glyph.KEY, this::permission);
+        LinearLayout.LayoutParams firstRow = new LinearLayout.LayoutParams(-1, dp(50));
+        firstRow.topMargin = dp(16);
+        left.addView(accessButton, firstRow);
+        importButton = action(T.t("Importar mi copia"), Shell.Glyph.FOLDER, this::importGame);
+        left.addView(importButton, rowParams);
+        left.addView(action(T.t("Enviar crash o log"), Shell.Glyph.SEND, this::report), rowParams);
+        left.addView(action("GitHub", Shell.Glyph.CODE, () -> startActivity(new Intent(Intent.ACTION_VIEW,
+                Uri.parse(Diagnostics.ISSUES)))), rowParams);
+        left.addView(new View(this), new LinearLayout.LayoutParams(-1, 0, 1));
+
+        LinearLayout files = new LinearLayout(this);
+        files.setOrientation(LinearLayout.VERTICAL);
+        files.setPadding(dp(24), 0, 0, 0);
+        left.addView(files);
+        files.addView(caption(T.t("ARCHIVOS DEL JUEGO")));
         checks = new LinearLayout(this);
         checks.setOrientation(LinearLayout.HORIZONTAL);
         files.addView(checks);
+        TextView note = label(T.t("Memoria interna/NFSCARBON") + "  ·  ANDROID EVOLVED · XBOX 360", 10, 0xFF6E767D, false);
+        note.setPadding(0, dp(2), 0, 0);
+        files.addView(note);
 
-        play = action(T.t("JUGAR"), true, this::play);
-        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(-1, dp(56));
-        playParams.topMargin = dp(12);
-        left.addView(play, playParams);
-        LinearLayout fileActions = new LinearLayout(this);
-        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, dp(48));
-        actionParams.topMargin = dp(10);
-        left.addView(fileActions, actionParams);
-        accessButton = action(T.t("Permitir acceso"), false, this::permission);
-        fileActions.addView(accessButton, new LinearLayout.LayoutParams(0, -1, 1));
-        importButton = action(T.t("Importar mi copia"), false, this::importGame);
-        LinearLayout.LayoutParams importParams = new LinearLayout.LayoutParams(0, -1, 1);
-        importParams.leftMargin = dp(8);
-        fileActions.addView(importButton, importParams);
-        TextView note = label(T.t("Memoria interna/NFSCARBON"), 11, 0xFF96A1B1, false);
-        note.setPadding(dp(2), dp(6), 0, 0);
-        left.addView(note);
-
-        LinearLayout right = card();
-        LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, -1, 1);
-        rightParams.leftMargin = dp(22);
-        columns.addView(right, rightParams);
-        right.addView(label(T.t("AJUSTES DEL JUEGO"), 12, ACCENT, true));
-        TextView nextSession = label(T.t("Se aplican al pulsar Jugar. Con antialiasing Original se usa 1280×720. Los FPS altos y Sin límite son experimentales."), 12, 0xFF96A1B1, false);
-        nextSession.setPadding(0, dp(3), 0, dp(5));
+        // Right: settings as cards, main button bottom right.
+        LinearLayout right = new LinearLayout(this);
+        right.setOrientation(LinearLayout.VERTICAL);
+        right.setPadding(dp(18), dp(20), dp(22), dp(6));
+        columns.addView(right, new LinearLayout.LayoutParams(0, -1, .6f));
+        right.addView(caption(T.t("AJUSTES DEL JUEGO")));
+        TextView nextSession = label(T.t("Se aplican al pulsar Jugar. Con antialiasing Original se usa 1280×720. Los FPS altos y Sin límite son experimentales."), 11, 0xFF7F878E, false);
+        nextSession.setPadding(0, dp(1), 0, dp(6));
         right.addView(nextSession);
         ScrollView optionsScroll = new ScrollView(this);
-        optionsList = new LinearLayout(this);
-        optionsList.setOrientation(LinearLayout.VERTICAL);
-        optionsScroll.addView(optionsList);
+        optionsScroll.setVerticalScrollBarEnabled(false);
+        optionsScroll.setVerticalFadingEdgeEnabled(true);
+        optionsScroll.setFadingEdgeLength(dp(28));
+        LinearLayout scrolled = new LinearLayout(this);
+        scrolled.setOrientation(LinearLayout.VERTICAL);
+        optionsList = new android.widget.GridLayout(this);
+        optionsList.setColumnCount(2);
+        scrolled.addView(optionsList, new LinearLayout.LayoutParams(-1, -2));
+        TextView languageNote = label(T.t("Los idiomas y las voces dependen de tu copia."), 11, 0xFF7F878E, false);
+        languageNote.setPadding(dp(4), dp(6), 0, dp(4));
+        scrolled.addView(languageNote);
+        optionsScroll.addView(scrolled);
         right.addView(optionsScroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        TextView languageNote = label(T.t("Los idiomas y las voces dependen de tu copia."), 11, 0xFF96A1B1, false);
-        languageNote.setPadding(0, dp(6), 0, dp(8));
-        right.addView(languageNote);
-        LinearLayout reports = new LinearLayout(this);
-        reports.addView(action(T.t("Enviar crash o log"), false, this::report),
-                new LinearLayout.LayoutParams(0, dp(46), 1.5f));
-        LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(0, dp(46), 1);
-        githubParams.leftMargin = dp(8);
-        reports.addView(action("GitHub", false, () -> startActivity(new Intent(Intent.ACTION_VIEW,
-                Uri.parse(Diagnostics.ISSUES)))), githubParams);
-        right.addView(reports);
+        play = action(T.t("JUGAR"), null, this::play);
+        LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(dp(330), dp(80));
+        playParams.gravity = Gravity.END;
+        playParams.topMargin = dp(2);
+        right.addView(play, playParams);
         refreshOptions();
         return columns;
     }
@@ -207,7 +218,7 @@ public final class MainActivity extends Activity {
             return;  // Offline/rate-limited checks never affect playing.
         }
         if (!ReleaseVersion.newer(result.tag, ReleaseUpdates.installed(this))) {
-            if (manual) new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            if (manual) new AlertDialog.Builder(this)
                     .setTitle(T.t("Actualizaciones")).setMessage(T.t("Tienes la versión ") + ReleaseUpdates.installed(this)
                             + T.t(". No hay una versión estable más reciente en GitHub."))
                     .setPositiveButton(T.t("Aceptar"), null).show();
@@ -216,7 +227,7 @@ public final class MainActivity extends Activity {
         android.content.SharedPreferences updates = ReleaseUpdates.prefs(this);
         if (!manual && result.tag.equals(updates.getString("notified_tag", ""))) return;
         updates.edit().putString("notified_tag", result.tag).apply();
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this)
                 .setTitle(T.t("Nueva versión disponible: ") + result.tag)
                 .setMessage(T.t("Puedes actualizar desde GitHub o seguir jugando con esta versión. Instala el APK ")
                         + T.t("encima del anterior para conservar tus partidas y ajustes."))
@@ -227,15 +238,13 @@ public final class MainActivity extends Activity {
                 .setNegativeButton(T.t("Más tarde"), null).show();
     }
 
+    /** Option card: dark, rounded ~10 dp, thin accent line; focused = accent outline and lighter fill. */
     private LinearLayout card() {
         LinearLayout view = new LinearLayout(this);
-        view.setOrientation(LinearLayout.VERTICAL);
-        view.setPadding(dp(16), dp(13), dp(16), dp(13));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xD9101823);
-        bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), 0x28FFFFFF);
-        view.setBackground(bg);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        view.setPadding(dp(14), dp(9), dp(10), dp(9));
+        view.setBackground(new Shell.Focus(getResources().getDisplayMetrics().density, 0xFF131719, 10, true));
+        view.setFocusable(true);
         return view;
     }
 
@@ -244,24 +253,52 @@ public final class MainActivity extends Activity {
         view.setText(message);
         view.setTextSize(size);
         view.setTextColor(color);
-        if (bold) view.setTypeface(Typeface.DEFAULT_BOLD);
+        view.setTypeface(Typeface.create(bold ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
         return view;
     }
 
-    private Button action(String title, boolean primary, Runnable action) {
+    /** Small grey, spaced caption in capitals above a value. */
+    private TextView caption(String message) {
+        TextView view = label(message, 10, 0xFF8E959B, true);
+        view.setAllCaps(true);
+        view.setLetterSpacing(.14f);
+        view.setPadding(0, 0, 0, dp(2));
+        return view;
+    }
+
+    /** glyph == null: the main button (parallelogram, accent gradient); otherwise a list row with a line icon. */
+    private Button action(String title, Shell.Glyph glyph, Runnable action) {
+        float density = getResources().getDisplayMetrics().density;
         Button view = new Button(this);
         view.setText(title);
         view.setAllCaps(false);
-        view.setTextColor(Color.WHITE);
-        view.setTextSize(primary ? 20 : 13);
-        view.setTypeface(Typeface.DEFAULT_BOLD);
         view.setStateListAnimator(null);
-        GradientDrawable bg = primary
-            ? new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0xFFFF6250, 0xFFD82B44})
-            : new GradientDrawable();
-        if (!primary) { bg.setColor(0x16FFFFFF); bg.setStroke(dp(1), 0x38FFFFFF); }
-        bg.setCornerRadius(dp(12));
-        view.setBackground(bg);
+        view.setMinHeight(0); view.setMinimumHeight(0);
+        if (glyph == null) {
+            view.setTextColor(0xFF04191C);  // White on turquoise is under 2:1; dark text reads.
+            view.setTextSize(24);
+            view.setTypeface(Typeface.create("sans-serif", Typeface.BOLD_ITALIC));
+            view.setBackground(new Shell.PlayButton(density));
+            android.text.SpannableString text = new android.text.SpannableString("\u00A0  " + title);  // Triangle next to the word.
+            text.setSpan(new android.text.style.ImageSpan(new Shell.Icon(density, Shell.Glyph.PLAY, 18, 0xFF04191C),
+                    android.text.style.ImageSpan.ALIGN_BASELINE), 0, 1, 0);
+            view.setText(text);
+            view.setPadding(dp(20), 0, dp(66), 0);  // Centre on the body, not on the stripes.
+        } else {
+            android.content.res.ColorStateList text = new android.content.res.ColorStateList(new int[][]{
+                    {android.R.attr.state_focused}, {android.R.attr.state_pressed}, {}},
+                    new int[]{Color.WHITE, Color.WHITE, 0xFFC8CDD2});
+            view.setTextColor(text);
+            view.setTextSize(16);
+            view.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+            view.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            view.setBackground(new Shell.Focus(density, 0, 0, false));
+            Shell.Icon icon = new Shell.Icon(density, glyph, 24, 0xFFC8CDD2);
+            icon.setTintList(text);
+            view.setCompoundDrawables(icon, null, null, null);
+            view.setCompoundDrawablePadding(dp(20));
+            view.setPadding(dp(26), 0, dp(8), 0);
+        }
         view.setOnClickListener(ignored -> action.run());
         return view;
     }
@@ -279,19 +316,24 @@ public final class MainActivity extends Activity {
     }
 
     private View optionRow(String title, String current, Runnable clicked) {
-        LinearLayout row = new LinearLayout(this);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(10), dp(12), dp(10));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0x12FFFFFF); bg.setCornerRadius(dp(10));
-        row.setBackground(bg);
-        row.addView(label(title, 13, Color.WHITE, false), new LinearLayout.LayoutParams(0, -2, 1));
-        TextView value = label(current + "  ›", 12, ACCENT, true);
-        value.setGravity(Gravity.END);
-        row.addView(value, new LinearLayout.LayoutParams(0, -2, 1.1f));
+        LinearLayout row = card();
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        text.addView(caption(title));
+        TextView value = label(current, 15, Color.WHITE, true);
+        value.setSingleLine();
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        text.addView(value);
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
+        ImageView chevron = new ImageView(this);
+        chevron.setImageDrawable(new Shell.Icon(getResources().getDisplayMetrics().density, Shell.Glyph.CHEVRON, 18, 0xFF8E959B));
+        row.addView(chevron);
         row.setOnClickListener(ignored -> { if (!busy) clicked.run(); });
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.topMargin = dp(6);
+        android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams(
+                android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED),
+                android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f));
+        params.width = 0;
+        params.setMargins(dp(4), dp(4), dp(4), dp(4));
         row.setLayoutParams(params);
         return row;
     }
@@ -305,7 +347,7 @@ public final class MainActivity extends Activity {
             names[i + 1] = drivers.get(i).name;
             if (drivers.get(i).id.equals(GpuDrivers.selectedId(this))) selected = i + 1;
         }
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this)
                 .setTitle(T.t("Driver Vulkan"))
                 .setSingleChoiceItems(names, selected, (dialog, which) -> {
                     GpuDrivers.select(this, which == 0 ? "" : drivers.get(which - 1).id);
@@ -346,7 +388,7 @@ public final class MainActivity extends Activity {
             if (failed) text = T.t("No se pudo probar el driver. ") + gpu.optString("probeError", T.t("Error al cargar Vulkan."));
             if (playAfterProbe && !failed && (!"nativo".equals(GameOptions.get(this, GameOptions.RENDERER.key)) || gpu.optBoolean("compatible"))) { playAfterProbe = false; playChecked(); return; }
             playAfterProbe = false;
-            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            new AlertDialog.Builder(this)
                     .setTitle(T.t("Prueba del driver Vulkan")).setMessage(text)
                     .setPositiveButton(T.t("Aceptar"), null)
                     .setNeutralButton(T.t("Usar sistema"), (dialog, which) -> {
@@ -377,7 +419,7 @@ public final class MainActivity extends Activity {
 
     private void check(String name, boolean found) {
         TextView row = label((found ? "✓ " : "✗ ") + name, 12,
-                found ? 0xFF85DDA6 : 0xFFFF8585, false);
+                found ? 0xFF3DD68C : 0xFFFF7070, false);
         row.setPadding(0, dp(3), 0, dp(3));
         checks.addView(row, new LinearLayout.LayoutParams(0, -2, name.equals("default.xex") ? 2 : 1));
     }
@@ -405,6 +447,9 @@ public final class MainActivity extends Activity {
         play.setAlpha(ready ? 1f : .45f);
         accessButton.setVisibility(storageAllowed() ? View.GONE : View.VISIBLE);
         showChecks();
+        GradientDrawable dot = new GradientDrawable();  // Status dot: green ready, amber something missing.
+        dot.setShape(GradientDrawable.OVAL); dot.setColor(ready ? 0xFF3DD68C : 0xFFF0A63A); dot.setBounds(0, 0, dp(8), dp(8));
+        status.setCompoundDrawables(dot, null, null, null);
         status.setText(!storageAllowed() ? T.t("Permite el acceso a tu copia.")
                 : ready ? T.t("Tu copia está lista para iniciar.")
                 : T.t("Importa tu copia extraída de Xbox 360."));

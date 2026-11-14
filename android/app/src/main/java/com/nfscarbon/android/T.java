@@ -17,7 +17,8 @@ final class T {
     private static final Map<String, String> EN = new HashMap<>();
 
     static void init(Context context) {
-        String value = GameOptions.prefs(context).getString(KEY, "system");
+        // Not GameOptions.prefs(): loading GameOptions here would build its option titles before the language is known.
+        String value = context.getSharedPreferences("nfscarbon_game", Context.MODE_PRIVATE).getString(KEY, "system");
         boolean systemSpanish = "es".equals(Locale.getDefault().getLanguage());
         english = "en".equals(value) || ("system".equals(value) && !systemSpanish);
     }
@@ -244,6 +245,12 @@ final class T {
         p("MANO", "E-BRAKE");
         p("CAMARA", "CAMERA");
         p("MIRAR", "LOOK BACK");
+        // Mods
+        p("Desbloquear todos los coches y piezas", "Unlock all cars and parts");
+        p("Dinero infinito", "Infinite money");
+        p("Desactivado", "Off");
+        p("Activado · no cambia la partida", "On · does not change the save");
+        p("Activado · se guarda en la partida", "On · is written to the save");
         p("OCULTO", "HIDDEN");
         p("INCLINAR", "TILT");
     }

@@ -8,7 +8,7 @@
     <application android:name=".DiagnosticsApplication" android:allowBackup="false"
         android:appCategory="game" android:isGame="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="NFS Carbon 360" android:theme="@android:style/Theme.Material.NoActionBar"
+        android:label="NFS Carbon 360" android:theme="@style/Shell"
         android:usesCleartextTraffic="false">
         <profileable android:shell="true" />
         <provider android:name=".ReportFileProvider" android:authorities="${applicationId}.reports"
